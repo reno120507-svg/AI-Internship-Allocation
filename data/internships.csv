@@ -1,0 +1,4 @@
+id,company,required_skills,min_cgpa,location,domain,slots
+1,TechCorp,"python,ml",7.5,Chennai,AI,1
+2,Webify,"react,javascript",7.0,Bangalore,Web,1
+3,DataWorks,"python,data analysis",7.0,Chennai,Data,1

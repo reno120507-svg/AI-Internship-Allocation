@@ -1,0 +1,5 @@
+id,name,skills,cgpa,location_pref,domain_pref,gender
+1,Ravi,"python,ml,sql",8.2,Chennai,AI,M
+2,Anjali,"java,react,html",9.1,Bangalore,Web,F
+3,Kiran,"python,data analysis,excel",7.8,Chennai,Data,M
+4,Priya,"react,javascript,css",8.9,Bangalore,Web,F

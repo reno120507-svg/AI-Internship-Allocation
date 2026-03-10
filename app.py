@@ -1,0 +1,217 @@
+import streamlit as st
+import pandas as pd
+
+from matching import run_matching
+from jobs_api import get_live_internships
+from resume_parser import extract_resume_text, extract_skills
+from skill_gap import analyze_skill_gap
+
+
+st.set_page_config(page_title="AI Internship Allocation Engine", layout="centered")
+
+st.title("🎓 AI-Based Smart Internship Allocation Engine")
+
+st.markdown("""
+This system intelligently matches **candidates** with **internship opportunities** using:
+
+- Skill similarity
+- Resume parsing
+- Live internship listings
+- Skill gap analysis
+- Match score visualization
+""")
+
+# ---------------------------------------------
+# Candidate Profile
+# ---------------------------------------------
+
+st.subheader("👤 Candidate Profile")
+
+skills = st.text_input("Enter your skills (comma separated)")
+cgpa = st.number_input("Enter your CGPA", min_value=0.0, max_value=10.0)
+location_pref = st.text_input("Preferred Location")
+domain_pref = st.text_input("Preferred Domain (AI, Data, Web etc.)")
+
+# ---------------------------------------------
+# Resume Upload
+# ---------------------------------------------
+
+st.subheader("📄 Upload Resume")
+
+uploaded_resume = st.file_uploader("Upload your resume (PDF)", type=["pdf"])
+
+resume_skills = []
+
+if uploaded_resume:
+
+    resume_text = extract_resume_text(uploaded_resume)
+    resume_skills = extract_skills(resume_text)
+
+    st.success("Skills detected from resume:")
+    st.write(resume_skills)
+
+# ---------------------------------------------
+# Internship Matching
+# ---------------------------------------------
+
+st.subheader("🌍 Find Matching Internships")
+
+if st.button("Find Matching Internships"):
+
+    jobs_df = get_live_internships()
+
+    # Use resume skills if available
+    if resume_skills:
+        user_skills = resume_skills
+    else:
+        user_skills = [s.strip().lower() for s in skills.split(",") if s.strip()]
+
+    matches = []
+
+    for _, row in jobs_df.iterrows():
+
+        role = str(row["Role"]).lower()
+        location = str(row["Location"]).lower()
+
+        job_text = (str(row["Role"]) + " " + str(row["Company"])).lower()
+
+    # Skill matching score
+        skill_matches = sum(skill in job_text for skill in user_skills)
+        skill_score = (skill_matches / max(len(user_skills), 1)) * 60
+
+    # Domain preference score
+        domain_score = 0
+        if domain_pref and domain_pref.lower() in role:
+            domain_score = 20
+
+    # Location preference score
+        location_score = 0
+        if location_pref and location_pref.lower() in location:
+            location_score = 10
+
+    # CGPA score
+        cgpa_score = (cgpa / 10) * 10
+
+        total_score = skill_score + domain_score + location_score + cgpa_score
+
+        if total_score >= 0:
+
+            matches.append({
+                "Company": row["Company"],
+                "Role": row["Role"],
+                "Location": row["Location"],
+                "Match Score": round(total_score, 2),
+                "Apply Link": row["Apply Link"]
+            })
+
+    if matches:
+
+        result_df = pd.DataFrame(matches)
+        result_df = result_df.sort_values(by="Match Score", ascending=False)
+
+        top_matches = result_df.head(5)
+
+        best_match = top_matches.iloc[0]
+        almost_matches = top_matches.iloc[1:]
+
+        # ---------------------------------------------
+        # Match Score Visualization
+        # ---------------------------------------------
+
+      
+
+        # ---------------------------------------------
+        # Best Match
+        # ---------------------------------------------
+
+        st.subheader("🏆 Best Internship Match")
+
+        st.markdown(f"### {best_match['Role']} at {best_match['Company']}")
+        st.write(f"📍 Location: {best_match['Location']}")
+        st.write(f"⭐ Match Score: {best_match['Match Score']}")
+        st.progress(int(best_match["Match Score"]))
+
+        gap = analyze_skill_gap(user_skills, best_match["Role"])
+
+        missing_skills = ", ".join(gap["missing"])
+
+        if gap["missing"]:
+           st.warning("Skill Gap Detected")
+
+           st.write("Recommended Skills To Learn:")
+
+           for skill in gap["missing"]:
+               st.write("•", skill)
+ 
+        else:
+            st.success("You meet most required skills!")
+
+        st.markdown(f"[Apply Here]({best_match['Apply Link']})")
+
+        # ---------------------------------------------
+        # Other Matches
+        # ---------------------------------------------
+
+        st.subheader("🤖 AI Recommended Internships (Top 5)")
+
+        for _, row in almost_matches.iterrows():
+
+           st.markdown(f"**{row['Role']} — {row['Company']}**")
+           st.write(f"📍 Location: {row['Location']}")
+           st.write(f"⭐ Match Score: {row['Match Score']}")
+
+    # Analyze skill gap
+           gap = analyze_skill_gap(user_skills, row["Role"])
+
+           if gap["missing"]:
+               st.write("Recommended Skills To Learn:")
+               for skill in gap["missing"]:
+                   if skill.isalpha():   # filters numbers and symbols
+                       st.write(f"• {skill}")
+
+           st.markdown(f"[Apply Here]({row['Apply Link']})")
+           st.markdown("---")
+
+    else:
+        st.warning("No matching internships found.")
+
+# ---------------------------------------------
+# AI Allocation Engine (CSV Upload)
+# ---------------------------------------------
+
+st.divider()
+
+st.subheader("📂 Run AI Allocation Engine")
+
+candidates_file = st.file_uploader("Upload Candidates CSV", type=["csv"])
+internships_file = st.file_uploader("Upload Internships CSV", type=["csv"])
+
+if st.button("🚀 Run Smart Allocation"):
+
+    if candidates_file and internships_file:
+
+        candidates_df = pd.read_csv(candidates_file)
+        internships_df = pd.read_csv(internships_file)
+
+        candidates_df.to_csv("data/candidates.csv", index=False)
+        internships_df.to_csv("data/internships.csv", index=False)
+
+        with st.spinner("Running AI Matching Engine..."):
+
+            final_df = run_matching()
+            final_df["Score"] = final_df["Score"].round(3)
+
+        st.success("✅ Allocation Completed Successfully!")
+
+        st.subheader("📊 Allocation Results")
+        st.dataframe(final_df)
+
+        st.download_button(
+            label="⬇ Download Allocation Results",
+            data=final_df.to_csv(index=False),
+            file_name="final_allocations.csv",
+            mime="text/csv"
+        )
+
+    else:
+        st.warning("⚠ Please upload both CSV files.")
