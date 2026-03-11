@@ -1,10 +1,26 @@
+import sqlite3
 import streamlit as st
 import pandas as pd
 from matching import run_matching
 from jobs_api import get_live_internships
 from resume_parser import extract_resume_text, extract_skills
 from skill_gap import analyze_skill_gap
+conn = sqlite3.connect("users.db", check_same_thread=False)
+cursor = conn.cursor()
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users(
+username TEXT PRIMARY KEY,
+password TEXT,
+role TEXT
+)
+""")
+
+conn.commit()
+cursor.execute(
+"INSERT OR IGNORE INTO users VALUES ('admin','admin123','admin')"
+)
+conn.commit()
 USER_DB = "data/users.csv"
 
 st.set_page_config(page_title="AI Internship Allocation Engine", layout="centered")
@@ -28,33 +44,30 @@ This system intelligently matches **candidates** with **internship opportunities
 
 def register_user(username, password):
 
-    users = pd.read_csv(USER_DB)
-
-    if username in users["username"].values:
+    cursor.execute("SELECT * FROM users WHERE username=?", (username,))
+    if cursor.fetchone():
         return False
 
-    new_user = pd.DataFrame(
-        [[username, password, "user"]],
-        columns=["username", "password", "role"]
+    cursor.execute(
+        "INSERT INTO users VALUES (?,?,?)",
+        (username, password, "user")
     )
 
-    users = pd.concat([users, new_user], ignore_index=True)
-    users.to_csv(USER_DB, index=False)
-
+    conn.commit()
     return True
 
 
 def login_user(username, password):
 
-    users = pd.read_csv(USER_DB)
+    cursor.execute(
+        "SELECT role FROM users WHERE username=? AND password=?",
+        (username, password)
+    )
 
-    user = users[
-        (users["username"] == username) &
-        (users["password"] == password)
-    ]
+    result = cursor.fetchone()
 
-    if not user.empty:
-        return user.iloc[0]["role"]
+    if result:
+        return result[0]
 
     return None
 
