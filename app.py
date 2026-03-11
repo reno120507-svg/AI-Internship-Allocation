@@ -17,6 +17,17 @@ role TEXT
 """)
 
 conn.commit()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS candidates(
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+skills TEXT,
+cgpa REAL,
+location_pref TEXT,
+domain_pref TEXT
+)
+""")
+
+conn.commit()
 cursor.execute(
 "INSERT OR IGNORE INTO users VALUES ('admin','admin123','admin')"
 )
@@ -152,9 +163,17 @@ if st.session_state["logged_in"]:
         if admin_menu == "View Candidates":
 
             st.subheader("Candidates")
-            candidates_df = pd.read_csv("data/candidates.csv")
-            st.dataframe(candidates_df)
 
+            cursor.execute("SELECT * FROM candidates")
+
+            candidates = cursor.fetchall()
+
+            candidates_df = pd.DataFrame(
+                candidates,
+                columns=["ID", "Skills", "CGPA", "Location", "Domain"]
+            )
+
+            st.dataframe(candidates_df)
         if admin_menu == "View Internships":
 
             st.subheader("Internships")
@@ -179,6 +198,16 @@ if st.session_state["logged_in"]:
         cgpa = st.number_input("Enter your CGPA", min_value=0.0, max_value=10.0)
         location_pref = st.text_input("Preferred Location")
         domain_pref = st.text_input("Preferred Domain (AI, Data, Web etc.)")
+        if st.button("Save Profile"):
+
+            cursor.execute(
+                "INSERT INTO candidates (skills, cgpa, location_pref, domain_pref) VALUES (?,?,?,?)",
+                 (skills, cgpa, location_pref, domain_pref)
+        )
+
+        conn.commit()
+
+        st.success("Candidate profile saved successfully!")
 
         # ---------------------------------------------
         # Resume Upload
