@@ -7,7 +7,7 @@ from skill_gap import analyze_skill_gap
 USER_DB = "data/users.csv"
 
 st.set_page_config(page_title="AI Internship Allocation Engine", layout="centered")
-
+st.write("NEW VERSION RUNNING")
 st.title("🎓 AI-Based Smart Internship Allocation Engine")
 
 st.markdown("""
