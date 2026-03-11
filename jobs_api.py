@@ -4,6 +4,9 @@ import pandas as pd
 
 def get_live_internships():
 
+    # Load Indian internships dataset
+    indian_jobs = pd.read_csv("data/indian_internships.csv")
+
     url = "https://jsearch.p.rapidapi.com/search"
 
     querystring = {
@@ -18,19 +21,22 @@ def get_live_internships():
     }
 
     response = requests.get(url, headers=headers, params=querystring)
-
     data = response.json()
 
-    jobs = []
+    api_jobs = []
 
-    for job in data["data"]:
-        jobs.append({
+    for job in data.get("data", []):
+
+        api_jobs.append({
             "Company": job.get("employer_name", "Unknown"),
             "Role": job.get("job_title", "Intern"),
             "Location": job.get("job_city", "Remote"),
             "Apply Link": job.get("job_apply_link", "#")
         })
 
-    jobs_df = pd.DataFrame(jobs)
+    api_df = pd.DataFrame(api_jobs)
+
+    # Combine Indian dataset + API jobs
+    jobs_df = pd.concat([indian_jobs, api_df], ignore_index=True)
 
     return jobs_df
