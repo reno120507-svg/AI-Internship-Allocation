@@ -140,7 +140,13 @@ if st.session_state["logged_in"]:
         if admin_menu == "View Users":
 
             st.subheader("Registered Users")
-            users_df = pd.read_csv("data/users.csv")
+
+            cursor.execute("SELECT username, role FROM users")
+
+            users = cursor.fetchall()
+
+            users_df = pd.DataFrame(users, columns=["Username", "Role"])
+
             st.dataframe(users_df)
 
         if admin_menu == "View Candidates":
