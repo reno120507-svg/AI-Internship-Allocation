@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-
 from matching import run_matching
 from jobs_api import get_live_internships
 from resume_parser import extract_resume_text, extract_skills
 from skill_gap import analyze_skill_gap
-
+USER_DB = "data/users.csv"
 
 st.set_page_config(page_title="AI Internship Allocation Engine", layout="centered")
 
@@ -20,7 +19,70 @@ This system intelligently matches **candidates** with **internship opportunities
 - Skill gap analysis
 - Match score visualization
 """)
+def register_user(username, password):
 
+    users = pd.read_csv(USER_DB)
+
+    if username in users["username"].values:
+        return False
+
+    new_user = pd.DataFrame(
+        [[username, password, "user"]],
+        columns=["username", "password", "role"]
+    )
+
+    users = pd.concat([users, new_user], ignore_index=True)
+    users.to_csv(USER_DB, index=False)
+
+    return True
+def login_user(username, password):
+
+    users = pd.read_csv(USER_DB)
+
+    user = users[
+        (users["username"] == username) &
+        (users["password"] == password)
+    ]
+
+    if not user.empty:
+        return user.iloc[0]["role"]
+
+    return None
+menu = ["Login", "Sign Up"]
+
+choice = st.sidebar.selectbox("Menu", menu)
+
+username = st.sidebar.text_input("Username")
+password = st.sidebar.text_input("Password", type="password")
+if choice == "Login":
+
+    if st.sidebar.button("Login"):
+
+        if login_user(username, password):
+            st.session_state["logged_in"] = True
+            st.success("Login Successful")
+
+        else:
+            st.error("Invalid username or password")
+if choice == "Sign Up":
+
+    if st.sidebar.button("Create Account"):
+
+        if register_user(username, password):
+            st.success("Account created successfully")
+
+        else:
+            st.error("Username already exists")
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if st.session_state["logged_in"]:
+    st.title("AI Internship Matching System")
+
+    # Your existing project code here
+
+else:
+    st.warning("Please login or create an account")
 # ---------------------------------------------
 # Candidate Profile
 # ---------------------------------------------
